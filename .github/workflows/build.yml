@@ -8,8 +8,8 @@ on:
     branches: [main]
 
 jobs:
-  build-macos-arm64:
-    name: Build (macOS arm64)
+  build-macos:
+    name: Build (macOS)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,31 +18,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build
+      - name: Build arm64
         run: go build -ldflags="-s -w" -o cliplink-darwin-arm64 .
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-arm64
-          path: cliplink-darwin-arm64
-
-  build-macos-amd64:
-    name: Build (macOS amd64)
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Build
+      - name: Build amd64 (cross-compile via clang)
+        env:
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-target x86_64-apple-macos10.13"
+          CGO_LDFLAGS: "-target x86_64-apple-macos10.13"
         run: go build -ldflags="-s -w" -o cliplink-darwin-amd64 .
 
+      - name: Create universal binary
+        run: lipo -create -output cliplink-darwin-universal cliplink-darwin-arm64 cliplink-darwin-amd64
+
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-amd64
-          path: cliplink-darwin-amd64
+          name: macos-binaries
+          path: |
+            cliplink-darwin-arm64
+            cliplink-darwin-amd64
+            cliplink-darwin-universal
 
   build-windows:
     name: Build (Windows)
@@ -64,7 +60,7 @@ jobs:
 
   release:
     name: Release
-    needs: [build-macos-arm64, build-macos-amd64, build-windows]
+    needs: [build-macos, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -80,5 +76,6 @@ jobs:
           files: |
             cliplink-darwin-arm64
             cliplink-darwin-amd64
+            cliplink-darwin-universal
             cliplink-windows-amd64.exe
           generate_release_notes: true
