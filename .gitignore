@@ -1,0 +1,12 @@
+# Binaries
+cliplink
+cliplink-darwin-arm64
+cliplink-darwin-amd64
+cliplink-windows-amd64.exe
+*.exe
+
+# macOS
+.DS_Store
+
+# Go build cache
+/vendor/
